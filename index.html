@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YOU ARE AN IDIOT!</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: Arial Black, Arial, Helvetica, sans-serif;
+    background: #000;
+    /* ~2.9 flashes per second: as fast as is safe */
+    animation: flash .34s steps(1, end) infinite;
+    cursor: default;
+  }
+  @keyframes flash {
+    0%   { background: #fff; }
+    50%  { background: #000; }
+  }
+  /* everything inside inverts against the background: white on black, black on white */
+  #stage { position: fixed; inset: 0; overflow: hidden; mix-blend-mode: difference; }
+  .face {
+    position: absolute;
+    width: clamp(110px, 20vw, 230px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 10px solid #fff;
+    color: #fff;
+    font-size: clamp(60px, 12vw, 140px);
+    line-height: 1;
+    user-select: none;
+    will-change: transform;
+  }
+  .message {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: max-content;
+    max-width: 96vw;
+    text-align: center;
+    color: #fff;
+    font-weight: 900;
+    font-size: clamp(44px, 12vw, 150px);
+    line-height: .95;
+    letter-spacing: -4px;
+    text-transform: uppercase;
+    animation: slam .14s steps(2, end) infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes slam {
+    from { rotate: -9deg; scale: .85; }
+    to   { rotate: 9deg;  scale: 1.2; }
+  }
+  #sound {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 5;
+    border: 3px solid #fff;
+    background: #000;
+    color: #fff;
+    padding: 10px 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #sound:focus-visible { outline: 4px solid #888; outline-offset: 3px; }
+  .hint {
+    position: fixed;
+    left: 12px;
+    bottom: 14px;
+    z-index: 4;
+    font: bold 12px Arial, sans-serif;
+    color: #fff;
+    background: #000;
+    border: 2px solid #fff;
+    padding: 6px 8px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body { animation: none; background: #000; }
+    .message { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="Animated black and white smiley prank">
+  <div class="message">YOU ARE AN IDIOT!</div>
+</div>
+<div class="hint">Flashing black &amp; white • Close this browser tab to leave</div>
+<button id="sound" type="button">Turn sound on</button>
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const COUNT = 9;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const faces = [];
+  for (let i = 0; i < COUNT; i++) {
+    const el = document.createElement('div');
+    el.className = 'face';
+    el.textContent = '☺';
+    stage.insertBefore(el, stage.firstChild);
+    const speed = 6 + Math.random() * 6;
+    const angle = Math.random() * Math.PI * 2;
+    faces.push({
+      el,
+      x: Math.random() * innerWidth * 0.6,
+      y: Math.random() * innerHeight * 0.6,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed
+    });
+  }
+  let width = innerWidth, height = innerHeight;
+  addEventListener('resize', () => { width = innerWidth; height = innerHeight; });
+  function animate() {
+    for (const p of faces) {
+      const size = p.el.getBoundingClientRect().width;
+      if (!reduce) { p.x += p.vx; p.y += p.vy; }
+      if (p.x <= 0 || p.x + size >= width) p.vx *= -1;
+      if (p.y <= 0 || p.y + size >= height) p.vy *= -1;
+      p.x = Math.max(0, Math.min(width - size, p.x));
+      p.y = Math.max(0, Math.min(height - size, p.y));
+      p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // Harsh little tune; audio only starts after the visitor clicks.
+  const button = document.getElementById('sound');
+  let audioCtx = null, timer = null, note = 0, soundOn = false;
+  const melody = [659, 784, 988, 784, 659, 523, 587, 659, 988, 1175, 988, 784];
+  function beep() {
+    if (!audioCtx || !soundOn) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = melody[note++ % melody.length];
+    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.11);
+  }
+  button.addEventListener('click', async () => {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    soundOn = !soundOn;
+    button.textContent = soundOn ? 'Mute sound' : 'Turn sound on';
+    if (timer) { clearInterval(timer); timer = null; }
+    if (soundOn) { beep(); timer = setInterval(beep, 130); }
+  });
+})();
+</script>
+</body>
+</html>
