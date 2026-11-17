@@ -89,7 +89,7 @@
 <div id="stage" aria-label="Animated black and white smiley prank">
   <div class="message">YOU ARE AN IDIOT!</div>
 </div>
-<div class="hint">Flashing black &amp; white • </div>
+<div class="hint">Flashing black &amp; white • Close this browser tab to leave</div>
 <button id="sound" type="button">Turn sound on</button>
 <script>
 (() => {
@@ -128,28 +128,26 @@
   }
   animate();
 
-  // Harsh little tune; audio only starts after the visitor clicks.
+  // Background music: the YouTube track, started when the visitor clicks the button
+  // (browsers block sound until a click). Needs an internet connection.
+  const VIDEO_ID = '-LaWn5OjX-Q';
   const button = document.getElementById('sound');
-  let audioCtx = null, timer = null, note = 0, soundOn = false;
-  const melody = [659, 784, 988, 784, 659, 523, 587, 659, 988, 1175, 988, 784];
-  function beep() {
-    if (!audioCtx || !soundOn) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.value = melody[note++ % melody.length];
-    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.11);
-  }
-  button.addEventListener('click', async () => {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
-    soundOn = !soundOn;
-    button.textContent = soundOn ? 'Mute sound' : 'Turn sound on';
-    if (timer) { clearInterval(timer); timer = null; }
-    if (soundOn) { beep(); timer = setInterval(beep, 130); }
+  let frame = null;
+  button.addEventListener('click', () => {
+    if (frame) {
+      frame.remove();
+      frame = null;
+      button.textContent = 'Turn sound on';
+      return;
+    }
+    frame = document.createElement('iframe');
+    frame.src = 'https://www.youtube-nocookie.com/embed/' + VIDEO_ID +
+      '?autoplay=1&loop=1&playlist=' + VIDEO_ID + '&controls=0';
+    frame.allow = 'autoplay; encrypted-media';
+    frame.title = 'Background music';
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:200px;height:120px;border:0;opacity:0.01;pointer-events:none;z-index:-1';
+    document.body.appendChild(frame);
+    button.textContent = 'Mute sound';
   });
 })();
 </script>
